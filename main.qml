@@ -100,10 +100,14 @@ Window {
             default:
                 break;
         }
-        if ((modelData[0] < '0' || modelData[0] > '9') && modelData[0] != '.')
+        if ((modelData[0] < "0" || modelData[0] > "9") && modelData[0] != "." && modelData[0] != "EQUALS")
             operationInserted = true;
 
-        if (operationInserted) {
+        if (modelData[0] == "EQUALS") {
+            label_input_id.text = ""
+            label_result_id.text = backend.expression
+        }
+        else if (operationInserted) {
             label_input_id.text = backend.expression
         }
         else {

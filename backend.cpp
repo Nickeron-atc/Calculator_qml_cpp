@@ -26,7 +26,8 @@ void Backend::push_button_brackets() {
             || this->lastTag & TAGS::CLOSING_BRACKET
             || this->lastTag & TAGS::EQUALS
             || this->lastTag & TAGS::NONE
-            || this->lastTag & TAGS::PERCENT) {
+            || this->lastTag & TAGS::PERCENT
+            || this->lastTag & TAGS::CLEAR) {
             this->m_expression += " * (";
         } else {
             this->m_expression += " (";
@@ -429,7 +430,9 @@ void Backend::push_button_equals() {
         this->m_expression = "NOT A NUMBER";
     }
     this->floatingNumber = this->m_expression.indexOf('.') != -1;
+    this->operationInserted = false;
 
-    if (this->m_expression == "0") this->valueIsZero = true;
-    this->lastTag = TAGS::EQUALS;
+    if (this->m_expression == "0") { this->valueIsZero = true; this->lastTag = TAGS::ZERO; }
+    else if (this->m_expression == "0.0") { this->valueIsZero = true; this->lastTag = TAGS::ZERO; }
+    else this->lastTag = TAGS::EQUALS;
 }
