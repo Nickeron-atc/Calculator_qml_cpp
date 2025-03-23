@@ -5,6 +5,8 @@
 #include <QString>
 
 #include <string>
+#include <stack>
+#include <queue>
 #include <algorithm>
 
 #include "calculator.h"
@@ -14,6 +16,8 @@ class Backend: public QObject
     Q_OBJECT
     Q_PROPERTY(QString expression READ getValue WRITE setValue
                    NOTIFY valueChanged)
+    Q_PROPERTY(QString precomputed READ getPrecomputed WRITE setPrecomputed
+                   NOTIFY precomputedChanged)
 public:
     Backend(QObject *parent = nullptr) : m_expression{"0"}, calculator{} {
         divisionByZero = false;
@@ -22,11 +26,15 @@ public:
         floatingNumber = false;
         equalsButtonPressed = false;
         brackets_counter = 0;
+        last_precomputed_openning_bracket_index = -1;
         lastTag = TAGS::NUMBER;
     }
 
     QString getValue() const;
     void setValue(QString newValue);
+
+    QString getPrecomputed() const;
+    void setPrecomputed(QString newValue);
 
     Q_INVOKABLE void push_button_brackets();
     Q_INVOKABLE void push_button_plus_minus();
@@ -53,8 +61,10 @@ public:
     Q_INVOKABLE void push_button_equals();
 signals:
     void valueChanged(QString);
+    void precomputedChanged(QString);
+
 private:
-    enum TAGS {
+    enum TAGS : int {
         NONE                = 0,
 
         PLUS                = 1 << 1,
@@ -83,6 +93,7 @@ private:
     };
 
     QString m_expression;
+    QString m_precomputed;
 
     bool divisionByZero;
     bool valueIsZero;
@@ -91,6 +102,10 @@ private:
     bool equalsButtonPressed;
 
     int brackets_counter;
+    int last_precomputed_openning_bracket_index;
+
+    std::stack<int> openning_bracket_indexes;
+    std::queue<int> closing_bracket_indexes;
 
     TAGS lastTag;
 

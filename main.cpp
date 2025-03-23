@@ -1,5 +1,9 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
+#include <QFontDatabase>
+#include <QDir>
+
+#include <exception>
 
 #include "backend.h"
 

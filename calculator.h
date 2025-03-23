@@ -23,7 +23,10 @@ public:
     Calculator(const std::string& infix_notation);
 
     double calculate();
+    double calculate(std::string);
     void set_input(const std::string& param);
+    std::string precompute(const std::string& infix, int, int);
+    std::string evaluatePercent(std::string);
 };
 
 #endif // CALCULATOR_H

@@ -3,6 +3,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <algorithm>
 #include <stack>
 #include <cctype> // isdigit
 
@@ -33,6 +34,61 @@ std::string Calculator::get_string_number(const std::string& str, int& pos) {
     pos--;
 
     return strNumber;
+}
+
+std::string Calculator::precompute(const std::string& infix, int index1, int index2) {
+    std::string str = infix.substr(index1+1, index2 - index1-1);
+    auto cut_the_zeros = [](std::string res_str) {
+        auto it = std::find(res_str.begin(), res_str.end(), '.');
+        if (it != res_str.end()) {
+            int pos = it - res_str.begin();
+            int last_non_zero = res_str.length() - 1;
+            while (last_non_zero > pos && res_str[last_non_zero] == '0') {
+                last_non_zero--;
+            }
+            if (last_non_zero == pos) {
+                res_str = res_str.substr(0, pos);
+            }
+            else {
+                res_str = res_str.substr(0, last_non_zero + 1);
+            }
+        }
+        return res_str;
+    };
+    auto remove_spaces = [](std::string str) {
+        str.erase(std::remove_if(str.begin(), str.end(), [](char c) {
+                      return std::isspace(static_cast<unsigned char>(c));
+                  }), str.end());
+        return str;
+    };
+    this->set_input(remove_spaces(str));
+    str = cut_the_zeros(std::to_string(this->calculate()));
+    return str;
+}
+
+std::string Calculator::evaluatePercent(std::string infix) {
+    std::string orig = infix, eval = infix;
+    for (int i = 0; i < orig.size(); i++) {
+        if (orig[i] == '%') {
+            int index = i - 1;
+            while(index >= 0 && (orig[index] >= '0' && orig[index] <= '9'))
+                index--;
+            if (index > 0) {
+                if (orig[index] == '+') {
+                    eval = orig.substr(0, index) + "*(1+" + orig.substr(index+1, i - (index+1)) + "/100)";
+                    if (i == orig.size() - 1)
+                        eval += orig.substr(i + 1, orig.length() - 1);
+                }
+                else if (orig[index] == '-') {
+                    eval = orig.substr(0, index) + "*(1-" + orig.substr(index+1, i - (index+1)) + "/100)";
+                    if (i == orig.size() - 1)
+                        eval += orig.substr(i + 1, orig.length() - 1);
+                }
+            }
+        }
+        orig = eval;
+    }
+    return eval;
 }
 
 std::string Calculator::toPostfix(const std::string& infix) {
@@ -100,6 +156,10 @@ void Calculator::set_input(const std::string& param) {
 }
 
 double Calculator::calculate() {
+    return this->calculate(this->postfixNotation);
+}
+
+double Calculator::calculate(std::string postfixNotation) {
     std::stack<double> locals;
     for (int i = 0; i < postfixNotation.length(); i++) {
         char c = postfixNotation[i];
@@ -115,7 +175,10 @@ double Calculator::calculate() {
         else if (c == '~') {
             double last = locals.top();
             locals.pop();
-            locals.push(execute('~', last));
+            if (last == 0)
+                locals.push(execute('+', 0, 0));
+            else
+                locals.push(execute('~', last));
         }
         else if (c == '%') {
             double last = locals.top();

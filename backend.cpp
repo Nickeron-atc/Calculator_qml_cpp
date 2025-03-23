@@ -10,29 +10,57 @@ void Backend::setValue(QString newValue)
     emit valueChanged(m_expression);
 }
 
+QString Backend::getPrecomputed() const
+{
+    return m_precomputed;
+}
+void Backend::setPrecomputed(QString newValue)
+{
+    m_precomputed = newValue;
+    emit precomputedChanged(m_precomputed);
+}
+
 void Backend::push_button_brackets() {
     if (this->divisionByZero) return;
 
-    if (this->brackets_counter > 0) {
-        if (this->lastTag & TAGS::NUMBER
+    if (this->brackets_counter > 0 &&
+            (this->lastTag & TAGS::NUMBER
             || this->lastTag & TAGS::CLOSING_BRACKET
-            || this->lastTag & TAGS::PERCENT) {
-            this->m_expression += ")";
-            this->brackets_counter--;
-            this->lastTag & TAGS::CLOSING_BRACKET;
-        }
+            || this->lastTag & TAGS::PERCENT)) {
+        this->m_expression += ")";
+        this->closing_bracket_indexes.push(this->m_expression.length() - 1);
+        this->brackets_counter--;
+
+        this->m_precomputed = this->calculator.precompute(
+            this->m_expression.toStdString(),
+            this->openning_bracket_indexes.top(),
+            this->closing_bracket_indexes.front()
+        ).c_str();
+
+        this->openning_bracket_indexes.pop();
+        this->closing_bracket_indexes.pop();
+
+        this->lastTag & TAGS::CLOSING_BRACKET;
     } else {
-        if (this->lastTag & TAGS::NUMBER
+        if(this->lastTag & TAGS::NUMBER
             || this->lastTag & TAGS::CLOSING_BRACKET
             || this->lastTag & TAGS::EQUALS
             || this->lastTag & TAGS::NONE
             || this->lastTag & TAGS::PERCENT
             || this->lastTag & TAGS::CLEAR) {
-            this->m_expression += " * (";
-        } else {
+
+            if (this->valueIsZero) {
+                this->m_expression = "(";
+            }
+            else {
+                this->m_expression += " * (";
+            }
+        }
+        else {
             this->m_expression += " (";
         }
         this->brackets_counter++;
+        this->openning_bracket_indexes.push(this->m_expression.length() - 1);
         this->lastTag = TAGS::OPENNING_BRACKET;
     }
     this->operationInserted = true;
@@ -47,11 +75,15 @@ void Backend::push_button_plus_minus() {
     {
         this->m_expression += " (-";
         this->brackets_counter++;
+        this->openning_bracket_indexes.push(this->m_expression.length() - 2);
     }
     else {
         this->m_expression += " * (-";
         this->brackets_counter++;
+        this->openning_bracket_indexes.push(this->m_expression.length() - 2);
     }
+
+    if (this->valueIsZero) this->valueIsZero = false;
 
     this->operationInserted = true;
     this->floatingNumber = false;
@@ -74,13 +106,14 @@ void Backend::push_button_dot() {
 }
 
 void Backend::push_button_percent() {
-    if (this->divisionByZero
-        || !this->lastTag | !TAGS::NUMBER)
+    if (this->divisionByZero)
         return;
-    this->m_expression += " % ";
-    this->operationInserted = true;
+    if (this->lastTag & TAGS::NUMBER) {
+        this->m_expression += " % ";
+        this->operationInserted = true;
 
-    this->lastTag = TAGS::PERCENT;
+        this->lastTag = TAGS::PERCENT;
+    }
 }
 
 void Backend::push_button_clear() {
@@ -94,9 +127,14 @@ void Backend::push_button_clear() {
     this->floatingNumber = false;
 
     this->brackets_counter = 0;
+    while(this->openning_bracket_indexes.empty() == false)
+        this->openning_bracket_indexes.pop();
+    while(this->closing_bracket_indexes.empty() == false)
+        this->closing_bracket_indexes.pop();
 
     this->lastTag = TAGS::CLEAR;
     this->m_expression = "0";
+    this->m_precomputed = "";
 }
 
 void Backend::push_button_0() {
@@ -399,7 +437,7 @@ void Backend::push_button_equals() {
         return str;
     };
 
-    this->calculator.set_input(remove_spaces(this->m_expression.toStdString()));
+    this->calculator.set_input(this->calculator.evaluatePercent(remove_spaces(this->m_expression.toStdString())));
     double res = this->calculator.calculate();
 
     auto cut_the_zeros = [](std::string res_str) {
@@ -423,16 +461,18 @@ void Backend::push_button_equals() {
     this->m_expression = cut_the_zeros(std::to_string(res)).c_str();
     if (this->m_expression == "inf") {
         this->divisionByZero = true;
-        this->m_expression = "DIVISION BY ZERO";
+        this->m_expression = "INF";
     }
     else if (this->m_expression == "nan") {
         this->divisionByZero = true;
-        this->m_expression = "NOT A NUMBER";
+        this->m_expression = "NAN";
     }
     this->floatingNumber = this->m_expression.indexOf('.') != -1;
     this->operationInserted = false;
 
     if (this->m_expression == "0") { this->valueIsZero = true; this->lastTag = TAGS::ZERO; }
     else if (this->m_expression == "0.0") { this->valueIsZero = true; this->lastTag = TAGS::ZERO; }
-    else this->lastTag = TAGS::EQUALS;
+    else { this->lastTag = TAGS::EQUALS; }
+
+    this->m_precomputed="";
 }
